@@ -1,8 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
 import { ArchifyArchitectureJson } from "./types";
 
-const CACHE_DIR = path.join(process.cwd(), ".cache", "diagrams");
+const CACHE_DIR = path.join(os.tmpdir(), "repoflows-cache", "diagrams");
 
 interface CachedDiagramEntry {
   repo: string;
