@@ -69,14 +69,21 @@ function MapViewerContent() {
         throw new Error(data.error || "Failed to generate architecture diagram.");
       }
 
-      setStepIndex(3);
-
-      const t3 = setTimeout(() => {
+      if (data.cached) {
+        // Instant presentation for cached diagrams (smooth, zero-flicker)
         setHtmlContent(data.html);
         setJsonIr(data.jsonIr);
         setIsLoading(false);
-      }, 400);
-      timerRefs.current.push(t3);
+      } else {
+        // Complete 4-step progress animation for fresh scans
+        setStepIndex(3);
+        const t3 = setTimeout(() => {
+          setHtmlContent(data.html);
+          setJsonIr(data.jsonIr);
+          setIsLoading(false);
+        }, 350);
+        timerRefs.current.push(t3);
+      }
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : "An unexpected error occurred.";

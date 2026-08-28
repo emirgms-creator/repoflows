@@ -81,7 +81,7 @@ export default function RecentScans() {
                       <img
                         src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.svgPreview)}`}
                         alt={item.title || item.repo}
-                        className="w-[600px] h-[360px] transform scale-[0.24] sm:scale-[0.26] origin-center opacity-85 group-hover:opacity-100 group-hover:scale-[0.28] transition-transform duration-300 flex items-center justify-center"
+                        className="w-full h-full object-contain p-2.5 opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300"
                       />
                     ) : (
                       <div className="flex flex-col items-center justify-center text-neutral-600 gap-1.5">

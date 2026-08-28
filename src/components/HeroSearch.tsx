@@ -62,13 +62,17 @@ export default function HeroSearch() {
         throw new Error(data.error || "Failed to generate architecture diagram.");
       }
 
-      setStepIndex(3);
-
-      const t3 = setTimeout(() => {
+      if (data.cached) {
         setIsLoading(false);
         router.push(`/map?repo=${encodeURIComponent(parsed.fullName)}`);
-      }, 600);
-      timerRefs.current.push(t3);
+      } else {
+        setStepIndex(3);
+        const t3 = setTimeout(() => {
+          setIsLoading(false);
+          router.push(`/map?repo=${encodeURIComponent(parsed.fullName)}`);
+        }, 500);
+        timerRefs.current.push(t3);
+      }
     } catch (err: unknown) {
       console.error(err);
       const message = err instanceof Error ? err.message : "An unexpected error occurred. Please try again.";
