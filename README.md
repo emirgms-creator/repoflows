@@ -113,6 +113,8 @@ Transform any public GitHub repository into an interactive, animated, and verifi
 | `GEMINI_MODEL` | No | Gemini model name for synthesis | `gemini-2.5-flash-lite` |
 | `GITHUB_TOKEN` | No | GitHub PAT for higher API rate limits | — |
 | `NEXT_PUBLIC_SITE_URL` | No | Base production URL for SEO & sitemaps | `https://repoflows.com` |
+| `UPSTASH_REDIS_REST_URL` | No | Upstash Redis REST URL for permanent serverless cache | — |
+| `UPSTASH_REDIS_REST_TOKEN` | No | Upstash Redis REST Token for permanent serverless cache | — |
 
 ---
 
