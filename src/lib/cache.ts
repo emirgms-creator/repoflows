@@ -33,12 +33,31 @@ function getRedis(): Redis | null {
     return redisClient;
   }
 
-  const url =
+  // 1. Direct REST URL and Token format
+  let url =
     process.env.UPSTASH_REDIS_REST_URL ||
     process.env.KV_REST_API_URL;
-  const token =
+  let token =
     process.env.UPSTASH_REDIS_REST_TOKEN ||
     process.env.KV_REST_API_TOKEN;
+
+  // 2. Parse from REDIS_URL or KV_URL if only connection string was provided (e.g. rediss://default:token@host:6379)
+  if (!url || !token) {
+    const rawRedisUrl = process.env.REDIS_URL || process.env.KV_URL;
+    if (rawRedisUrl) {
+      try {
+        const parsed = new URL(rawRedisUrl);
+        const host = parsed.hostname;
+        const password = parsed.password;
+        if (host && password) {
+          url = `https://${host}`;
+          token = password;
+        }
+      } catch (err) {
+        console.warn("Failed to parse REDIS_URL connection string:", err);
+      }
+    }
+  }
 
   if (url && token) {
     try {
