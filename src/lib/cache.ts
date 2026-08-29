@@ -139,6 +139,9 @@ export async function setCachedDiagram(
   const match = html.match(/<svg[\s\S]*?<\/svg>/i);
   if (match) {
     svg = match[0];
+    if (!svg.includes("xmlns=")) {
+      svg = svg.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
+    }
   }
 
   const recentItem: RecentDiagramItem = {

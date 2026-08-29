@@ -44,6 +44,8 @@ function getSvgDataUri(rawSvg: string): string {
     svg { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #000000; }
     .c-grid { stroke: var(--grid); fill: none; }
     .c-mask { fill: var(--mask); stroke: none; }
+    .c-region { fill: var(--lane-fill) !important; stroke: var(--lane-stroke) !important; stroke-dasharray: 4 4; stroke-width: 1.5px; }
+    .c-security-group { fill: var(--security-fill) !important; stroke: var(--security-stroke) !important; stroke-dasharray: 4 4; stroke-width: 1.5px; }
     .c-frontend, [class*="frontend"] { fill: var(--frontend-fill) !important; stroke: var(--frontend-stroke) !important; stroke-width: 2px !important; }
     .c-backend, [class*="backend"] { fill: var(--backend-fill) !important; stroke: var(--backend-stroke) !important; stroke-width: 2px !important; }
     .c-database, [class*="database"] { fill: var(--database-fill) !important; stroke: var(--database-stroke) !important; stroke-width: 2px !important; }
@@ -51,12 +53,25 @@ function getSvgDataUri(rawSvg: string): string {
     .c-security, [class*="security"] { fill: var(--security-fill) !important; stroke: var(--security-stroke) !important; stroke-width: 2px !important; }
     .c-messagebus, [class*="messagebus"] { fill: var(--messagebus-fill) !important; stroke: var(--messagebus-stroke) !important; stroke-width: 2px !important; }
     .c-external, [class*="external"] { fill: var(--external-fill) !important; stroke: var(--external-stroke) !important; stroke-width: 2px !important; }
-    .c-boundary, .boundary-box, [class*="boundary"], [class*="lane"] { stroke: var(--lane-stroke); fill: var(--lane-fill); stroke-dasharray: 4 4; stroke-width: 1.5px; }
-    .edge, path, line { stroke: var(--arrow); stroke-width: 1.5px; fill: none; }
-    .edge.emphasis, path.emphasis { stroke: var(--arrow-emphasis); stroke-width: 2px; }
-    .edge.security, path.security { stroke: var(--security-stroke); stroke-dasharray: 3 3; }
+    .a-default, .edge, path, line { stroke: var(--arrow); fill: none; stroke-width: 1.5px; }
+    .a-emphasis, .edge.emphasis { stroke: var(--arrow-emphasis) !important; fill: none; stroke-width: 2px !important; }
+    .a-security, .edge.security { stroke: var(--security-stroke) !important; fill: none; stroke-dasharray: 5 5; stroke-width: 1.5px !important; }
+    .a-dashed, .edge.dashed { stroke: var(--database-stroke) !important; fill: none; stroke-dasharray: 4 4; stroke-width: 1.5px !important; }
+    .m-default { fill: var(--arrow) !important; }
+    .m-emphasis { fill: var(--arrow-emphasis) !important; }
+    .m-security { fill: var(--security-stroke) !important; }
+    .m-dashed { fill: var(--database-stroke) !important; }
+    .semantic-sigil { fill: none; stroke: currentColor; stroke-width: 1.35; stroke-linecap: round; stroke-linejoin: round; opacity: 0.85; }
+    .semantic-sigil .sigil-fill { fill: currentColor; stroke: none; }
+    .s-frontend { color: var(--frontend-stroke); }
+    .s-backend { color: var(--backend-stroke); }
+    .s-database { color: var(--database-stroke); }
+    .s-cloud { color: var(--cloud-stroke); }
+    .s-security { color: var(--security-stroke); }
+    .s-messagebus { color: var(--messagebus-stroke); }
+    .s-external { color: var(--external-stroke); }
     .t-primary, text { fill: var(--text) !important; font-size: 11px; }
-    .t-muted { fill: var(--text-muted) !important; }
+    .t-muted { fill: var(--text-muted) !important; font-size: 9px; }
     .t-dim { fill: var(--text-dim) !important; }
     .t-frontend { fill: var(--frontend-stroke) !important; }
     .t-backend { fill: var(--backend-stroke) !important; }
