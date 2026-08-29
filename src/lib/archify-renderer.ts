@@ -25,7 +25,7 @@ const ALLOWED_DOTS = new Set(["cyan", "emerald", "violet", "amber", "rose", "ora
 /**
  * Sanitizes and auto-repairs any raw JSON IR to strictly match Archify's AJV JSON Schema.
  */
-export function sanitizeArchifyJson(raw: any): ArchifyArchitectureJson {
+export function sanitizeArchifyJson(raw: any, forCli: boolean = false): ArchifyArchitectureJson {
   if (!raw || typeof raw !== "object") {
     throw new Error("Invalid architecture JSON input");
   }
@@ -79,6 +79,37 @@ export function sanitizeArchifyJson(raw: any): ArchifyArchitectureJson {
 
     if (c.sublabel) comp.sublabel = String(c.sublabel);
     if (c.tag) comp.tag = String(c.tag);
+
+    if (c.brand) {
+      if (typeof c.brand === "string") {
+        comp.brand = c.brand;
+      } else if (typeof c.brand === "object" && c.brand.id) {
+        comp.brand = { id: String(c.brand.id), ...(c.brand.digest ? { digest: String(c.brand.digest) } : {}) };
+      }
+    }
+
+    if (Array.isArray(c.sources) && c.sources.length > 0) {
+      const validSources = c.sources
+        .filter((s: any) => s && typeof s.path === "string" && s.path.length > 0)
+        .map((s: any) => ({
+          path: String(s.path),
+          ...(typeof s.line === "number" ? { line: s.line } : {}),
+          ...(typeof s.end_line === "number" ? { end_line: s.end_line } : {}),
+          ...(s.label ? { label: String(s.label) } : {}),
+        }))
+        .slice(0, 3);
+      if (validSources.length > 0) {
+        // If tag is not explicitly set, use the source filename as an informative tag
+        if (!comp.tag && validSources[0]?.path) {
+          const fileName = validSources[0].path.split("/").pop();
+          if (fileName) comp.tag = fileName;
+        }
+        // Only attach sources to IR when not preparing for Archify CLI (which requires local git checkout)
+        if (!forCli) {
+          comp.sources = validSources;
+        }
+      }
+    }
 
     if (Array.isArray(c.pos) && c.pos.length === 2 && typeof c.pos[0] === "number" && typeof c.pos[1] === "number") {
       comp.pos = [c.pos[0], c.pos[1]];
@@ -207,8 +238,8 @@ export async function renderArchitectureJson(jsonIr: ArchifyArchitectureJson): P
   const outputHtmlPath = path.join(tmpDir, `archify-out-${tmpId}.html`);
 
   try {
-    // Sanitize and validate before passing to Archify compiler
-    const preparedJson = sanitizeArchifyJson(jsonIr);
+    // Sanitize and validate before passing to Archify compiler (stripping CLI git verification requirements)
+    const preparedJson = sanitizeArchifyJson(jsonIr, true);
 
     await fs.writeFile(inputJsonPath, JSON.stringify(preparedJson, null, 2), "utf-8");
 

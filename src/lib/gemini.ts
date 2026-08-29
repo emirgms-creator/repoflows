@@ -1,53 +1,55 @@
-import { ArchifyArchitectureJson } from "./types";
+import { ArchifyArchitectureJson, ArchifyComponent } from "./types";
 import { RepoContext } from "./github";
-import { SAMPLE_ARCHITECTURES, generateGenericArchitecture } from "./mock-data";
+import { generateGenericArchitecture } from "./mock-data";
 
-const SYSTEM_PROMPT = `You are a Principal Software Architect expert in reverse-engineering software codebases into rich, production-grade, highly-detailed runtime architecture topologies for the Archify vector engine.
+const SYSTEM_PROMPT = `You are a Principal Software Architect and Reverse-Engineering Expert for the Archify Vector Diagram Engine.
 
-Analyze the repository files (manifests, configs, package dependencies, file tree, readme) and construct an enterprise-grade, comprehensive architecture map with 8 to 14 granular components, multi-tier boundaries, protocols, and guided views.
+Your task is to analyze the given GitHub repository facts (manifests, actual dependencies, categorized file tree, entrypoints, and README) and construct an accurate, truthful, evidence-backed runtime architecture diagram.
 
-ARCHITECTURAL BLUEPRINT RULES:
-1. RICH GRANULAR COMPONENTS (Produce 8 to 14 detailed components):
-   Do NOT oversimplify into 4-5 generic boxes. Break down the full tech stack into specific granular services:
-   - Client & Edge: Web Browser ("external"), Mobile App / CLI ("external"), Static CDN / Edge Worker ("cloud"), API Gateway / Reverse Proxy ("cloud")
-   - Application Core: Primary API Backend ("backend"), Background Worker / Task Runner ("backend"), Agent / Plugin / Tool Engine ("backend")
-   - Security & Identity: Auth Provider / OAuth / JWT ("security"), WAF / Shield ("security")
-   - Storage & State: Primary Database ("database"), Cache / Session Store ("database"), Vector Search / Embeddings ("database"), Object / S3 Storage ("database")
-   - Events & External: Message Broker / PubSub ("messagebus"), 3rd-Party APIs / LLM Providers ("external")
+CRITICAL TRUTH & GROUNDING INVARIANTS:
+1. STRICT ZERO-HALLUCINATION POLICY:
+   - SENSE OF REALITY: Only include components, databases, queues, or services that ACTUALLY exist in the repository or its explicit configurations.
+   - If there is NO database in the dependencies or docker-compose, DO NOT add a database box.
+   - If there is NO Redis / Memcached in the dependencies, DO NOT add a cache box.
+   - If there is NO Kafka / RabbitMQ / Celery, DO NOT add a message broker or queue box.
+   - If the project is a CLI tool or library, model the real internal modules (CLI Input, Command Router, Core Processor, Output Formatter, Storage/Config) instead of inventing web servers.
+   - If the project is a Frontend SPA (Vite/React/Vue), model UI State, Router, View Components, API Client, and Browser DOM.
+   - If the project is a Fullstack / Backend API, model Client/Ingress, Middleware, Controllers/Routers, Domain Services, and configured Data Stores.
 
-2. 2D MULTI-TIER GRID PLACEMENT (x: 40 to 940, y: 80 to 390):
-   Place components on a clean 3-row, 5-column architectural grid:
-   - COLUMN 1 (x: 40): Web Browser (y: 230), CLI / Mobile (y: 380), CDN / Assets (y: 80)
-   - COLUMN 2 (x: 250): Auth Provider (y: 80), API Gateway (y: 230), Message Broker / Queue (y: 380)
-   - COLUMN 3 (x: 480): Background Worker (y: 80), Core API Backend (y: 230), Plugin / Tool Engine (y: 380)
-   - COLUMN 4 (x: 720): Cache / Session Store (y: 80), Primary Database (y: 230), Vector Store (y: 380)
-   - COLUMN 5 (x: 940): Object Storage / S3 (y: 80), External LLMs / 3rd-Party APIs (y: 230), Webhooks / Telemetry (y: 380)
-   - Standard node sizes: [130, 60] or [145, 60]
+2. EVIDENCE LINKING (sources):
+   - For every component, you MUST provide at least one source file path in "sources" (e.g. [{"path": "src/routes/auth.ts", "label": "Auth Controller"}]).
+   - If a database or external service is configured via docker-compose or manifest, cite that file (e.g. [{"path": "docker-compose.yml", "label": "Postgres Container"}]).
 
-3. MULTI-LAYER BOUNDARIES (Strict Column Groupings):
-   - Boundary 1: "Edge & Ingress Tier" (kind: "region") wrapping components in Column 1 & Gateway
-   - Boundary 2: "Core Application Cluster" (kind: "region") wrapping components in Column 2 & Column 3 (Backend, Worker, Plugin Engine)
-   - Boundary 3: "Persistence & Data Store" (kind: "security-group") wrapping components in Column 4 (Database, Cache, Vector Store)
+3. ARCHIFY BRAND MARKS (brand):
+   - Assign the exact canonical brand identifier if the component matches a supported technology:
+     * AI: "openai", "claude", "anthropic", "google-gemini", "deepseek", "mistral-ai", "hugging-face", "ollama"
+     * Cloud & Infra: "vercel", "cloudflare", "docker", "kubernetes", "terraform", "github-actions", "aws", "google-cloud"
+     * Databases: "postgresql", "mysql", "sqlite", "mongodb", "redis", "apache-kafka", "rabbitmq", "elasticsearch", "clickhouse", "prisma", "supabase", "firebase"
+     * Monitoring & Business: "sentry", "grafana", "prometheus", "stripe"
 
-4. RICH LABELS, SUBLABELS & TAGS:
-   - Give EVERY node an informative "sublabel" (e.g. "React 19 / Vite", "FastAPI / Python", "PostgreSQL 16", "Redis 7.2", "OpenAI / Claude API")
-   - Give EVERY node a technical "tag" (e.g. "Port 3000", "gRPC", "pgvector", "OAuth 2.0", "Port 5432", "Celery")
+4. COMPONENT TYPES & QUANTITY:
+   - Produce between 5 to 10 high-value, strictly evidenced components (do not bloat with empty generic boxes).
+   - Component "type" must be one of: "frontend", "backend", "database", "cloud", "security", "messagebus", "external".
 
-5. MEANINGFUL CONNECTIONS (10 to 18 labeled connections):
-   - Label connections with specific protocols (e.g. "HTTPS / REST", "JWT Verify", "SQL :5432", "Redis :6379", "Async Celery", "Streaming SSE")
-   - Use "variant": "emphasis" for main user request flow
-   - Use "variant": "security" for auth checks
-   - Use "variant": "dashed" for background queues, cache lookups, or async syncs
+5. 2D MULTI-TIER GRID LAYOUT:
+   - Organize components logically along a Left-to-Right data flow spine:
+     * COLUMN 1 (x: 40): User / Client / External Trigger / Browser / CLI Input (y: 120, 240, 360)
+     * COLUMN 2 (x: 260): Edge / Gateway / Router / Middleware / Ingress (y: 120, 240, 360)
+     * COLUMN 3 (x: 500): Core Engine / Application Services / Controllers (y: 120, 240, 360)
+     * COLUMN 4 (x: 740): Persistence / ORM / Database / Cache / Workers (y: 120, 240, 360)
+     * COLUMN 5 (x: 960): External APIs / 3rd-Party Integrations / Cloud Providers (y: 120, 240, 360)
+   - Standard node size: [140, 60] or [150, 60]. Ensure y positions have at least 50px vertical clearance.
 
-6. ARCHITECTURE SUMMARY CARDS (Exactly 3 cards):
-   - Card 1 ("dot": "cyan"): Architecture & Core Topology (3-4 bullet points)
-   - Card 2 ("dot": "rose"): Security, Identity & Auth Model (3-4 bullet points)
-   - Card 3 ("dot": "emerald"): Data Flow, Caching & Persistence (3-4 bullet points)
+6. MEANINGFUL LABELED CONNECTIONS:
+   - Connect actual invocation and data pathways with precise protocol or purpose labels (e.g. "HTTPS / JSON", "SQL Query", "Redis PubSub", "Import / Call", "CLI Args", "Webhook").
+   - Use "variant": "emphasis" for the primary request flow.
+   - Use "variant": "security" for authentication, validation, or guard logic.
+   - Use "variant": "dashed" for background syncs, cache checks, or async jobs.
 
-7. GUIDED INTERACTIVE VIEWS (3 views in meta.views):
-   - View 1: "Full Topology" focusing on all components
-   - View 2: "Core Request Path" focusing on client -> gateway -> backend -> db
-   - View 3: "Data & Storage Tier" focusing on backend -> db -> cache -> vector store`;
+7. BOUNDARIES & VIEWS:
+   - Group real cohesive boundaries (e.g. "API Gateway & Ingress", "Application Runtime", "Data Tier").
+   - Create 2 to 3 guided views in meta.views (e.g. "Primary Execution Flow", "Data & Persistence Flow").
+   - Create exactly 3 factual summary cards explaining the real architecture, data lifecycle, and security model.`;
 
 // Gemini Native Structured Output Schema
 const GEMINI_RESPONSE_SCHEMA = {
@@ -92,6 +94,19 @@ const GEMINI_RESPONSE_SCHEMA = {
           label: { type: "STRING" },
           sublabel: { type: "STRING" },
           tag: { type: "STRING" },
+          brand: { type: "STRING" },
+          sources: {
+            type: "ARRAY",
+            items: {
+              type: "OBJECT",
+              required: ["path"],
+              properties: {
+                path: { type: "STRING" },
+                line: { type: "INTEGER" },
+                label: { type: "STRING" },
+              },
+            },
+          },
           pos: { type: "ARRAY", items: { type: "NUMBER" } },
           size: { type: "ARRAY", items: { type: "NUMBER" } },
         },
@@ -139,14 +154,45 @@ const GEMINI_RESPONSE_SCHEMA = {
   },
 };
 
-export async function analyzeRepositoryWithGemini(repoContext: RepoContext): Promise<ArchifyArchitectureJson> {
-  const repoName = repoContext.meta.fullName;
+/**
+ * Ensures clean 2D layout and removes any spatial collisions.
+ */
+function postProcessLayout(components: ArchifyComponent[]): ArchifyComponent[] {
+  const columnMap: Record<number, ArchifyComponent[]> = {};
 
-  // Check for preset / cached sample first
-  if (SAMPLE_ARCHITECTURES[repoName.toLowerCase()]) {
-    return SAMPLE_ARCHITECTURES[repoName.toLowerCase()];
+  // Group by approximated column
+  for (const comp of components) {
+    const rawX = comp.pos ? comp.pos[0] : 40;
+    const colIndex = rawX < 150 ? 0 : rawX < 380 ? 1 : rawX < 620 ? 2 : rawX < 850 ? 3 : 4;
+    if (!columnMap[colIndex]) columnMap[colIndex] = [];
+    columnMap[colIndex].push(comp);
   }
 
+  const standardX = [40, 260, 500, 740, 960];
+  const nodeWidth = 145;
+  const nodeHeight = 60;
+  const gapY = 40;
+  const startY = 100;
+
+  for (const [colStr, comps] of Object.entries(columnMap)) {
+    const col = parseInt(colStr, 10);
+    const targetX = standardX[col] || 40 + col * 220;
+
+    // Distribute Y positions evenly centered around middle
+    const totalHeight = comps.length * nodeHeight + (comps.length - 1) * gapY;
+    let currentY = Math.max(startY, 260 - Math.floor(totalHeight / 2));
+
+    comps.forEach((comp) => {
+      comp.pos = [targetX, currentY];
+      comp.size = [nodeWidth, nodeHeight];
+      currentY += nodeHeight + gapY;
+    });
+  }
+
+  return components;
+}
+
+export async function analyzeRepositoryWithGemini(repoContext: RepoContext): Promise<ArchifyArchitectureJson> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GOOGLE_API_KEY;
 
   if (!apiKey) {
@@ -154,32 +200,54 @@ export async function analyzeRepositoryWithGemini(repoContext: RepoContext): Pro
     return generateGenericArchitecture(repoContext);
   }
 
-  const userPrompt = `Reverse-engineer this repository into runtime architecture:
+  const { meta, categorizedTree, techStack, keyFiles } = repoContext;
 
-Repository: ${repoContext.meta.fullName}
-Description: ${repoContext.meta.description || "N/A"}
-Primary Language: ${repoContext.meta.language}
-Stars: ${repoContext.meta.stars}
+  const userPrompt = `Perform an evidence-backed architectural reverse-engineering of this repository:
 
-Directory Tree Preview:
-${repoContext.fileTree.slice(0, 60).join("\n")}
+REPOSITORY PROFILE:
+- Name: ${meta.fullName}
+- Description: ${meta.description || "N/A"}
+- Primary Language: ${meta.language}
+- Stars: ${meta.stars.toLocaleString()}
+- Detected Archetype: ${techStack.archetype.toUpperCase()}
 
-Key Architectural Files:
-${repoContext.keyFiles
+DETECTED TECH STACK EVIDENCE:
+- Frameworks: ${techStack.frameworks.length ? techStack.frameworks.join(", ") : "None detected"}
+- Databases / Stores: ${techStack.databases.length ? techStack.databases.join(", ") : "None detected"}
+- Infrastructure / Deployment: ${techStack.infrastructure.length ? techStack.infrastructure.join(", ") : "None detected"}
+- Runtimes: ${techStack.runtimes.join(", ")}
+- External Services: ${techStack.externalServices.length ? techStack.externalServices.join(", ") : "None detected"}
+
+CATEGORIZED CODEBASE MAP:
+- Manifests & Configs (${categorizedTree.manifests.length}): ${categorizedTree.manifests.slice(0, 15).join(", ")}
+- Key Entrypoints (${categorizedTree.entrypoints.length}): ${categorizedTree.entrypoints.slice(0, 10).join(", ")}
+- Routes & Controllers (${categorizedTree.routers.length}): ${categorizedTree.routers.slice(0, 15).join(", ")}
+- Data Models & Schemas (${categorizedTree.models.length}): ${categorizedTree.models.slice(0, 15).join(", ")}
+- Core Services & Domain (${categorizedTree.services.length}): ${categorizedTree.services.slice(0, 15).join(", ")}
+- Infrastructure & Docker (${categorizedTree.infrastructure.length}): ${categorizedTree.infrastructure.slice(0, 10).join(", ")}
+
+KEY ARCHITECTURAL FILE CONTENTS:
+${keyFiles
   .map(
-    (f) => `--- File: ${f.path} ---
+    (f) => `--- File: ${f.path} (${f.size} bytes) ---
 ${f.content}
 `
   )
   .join("\n\n")}
-`;
+
+REQUIREMENTS:
+1. Construct 5 to 10 concrete, evidenced components.
+2. Link each component to real files using "sources".
+3. Use Archify "brand" where matching technologies exist.
+4. Establish genuine, labeled dataflow connections between the nodes.
+5. Create 3 insightful summary cards detailing Architecture, Data Lifecycle, and Security Model.`;
 
   try {
     const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
+    const timeout = setTimeout(() => controller.abort(), 35000);
 
     let res;
     try {
@@ -229,10 +297,14 @@ ${f.content}
       throw new Error("Invalid components structure returned by Gemini.");
     }
 
+    // Post-process layout to ensure clean non-overlapping coordinates
+    parsed.components = postProcessLayout(parsed.components);
+
     return parsed;
   } catch (error) {
     console.error("Gemini analysis failed:", error);
     return generateGenericArchitecture(repoContext);
   }
 }
+
 

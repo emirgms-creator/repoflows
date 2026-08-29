@@ -1,6 +1,6 @@
-import { RepoFileInfo } from "./types";
+import { RepoFileInfo, DetectedTechStack } from "./types";
 
-interface GitHubRepoMeta {
+export interface GitHubRepoMeta {
   fullName: string;
   description: string;
   language: string;
@@ -9,33 +9,255 @@ interface GitHubRepoMeta {
   defaultBranch: string;
 }
 
+export interface CategorizedFileTree {
+  manifests: string[];
+  entrypoints: string[];
+  routers: string[];
+  models: string[];
+  services: string[];
+  infrastructure: string[];
+  totalBlobs: number;
+}
+
 export interface RepoContext {
   meta: GitHubRepoMeta;
   fileTree: string[];
+  categorizedTree: CategorizedFileTree;
   keyFiles: RepoFileInfo[];
+  techStack: DetectedTechStack;
 }
 
-const PRIORITY_FILENAMES = [
-  "README.md",
-  "readme.md",
+const MANIFEST_PATTERNS = [
   "package.json",
-  "docker-compose.yml",
-  "docker-compose.yaml",
-  "Dockerfile",
-  "requirements.txt",
+  "cargo.toml",
   "pyproject.toml",
-  "Cargo.toml",
+  "requirements.txt",
   "go.mod",
   "pom.xml",
   "build.gradle",
-  "server.js",
+  "gemfile",
+  "docker-compose.yml",
+  "docker-compose.yaml",
+  "dockerfile",
+  "schema.prisma",
+  "drizzle.config.ts",
+  "alembic.ini",
+  "turbo.json",
+  "pnpm-workspace.yaml",
+  "lerna.json",
+];
+
+const ENTRYPOINT_PATTERNS = [
+  "index.ts",
+  "index.js",
   "server.ts",
+  "server.js",
   "main.py",
   "app.py",
   "main.go",
+  "main.rs",
+  "app.ts",
   "src/index.ts",
+  "src/main.ts",
+  "src/server.ts",
+  "src/app.ts",
+  "src/main.py",
   "src/main.rs",
+  "src/main.go",
+  "app/layout.tsx",
+  "pages/_app.tsx",
 ];
+
+// Helper to check if path matches ignore list
+function isIgnoredPath(filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+  return (
+    lower.includes("node_modules/") ||
+    lower.includes(".git/") ||
+    lower.includes(".github/") ||
+    lower.includes("dist/") ||
+    lower.includes("build/") ||
+    lower.includes("target/") ||
+    lower.includes("vendor/") ||
+    lower.includes(".next/") ||
+    lower.includes("test/") ||
+    lower.includes("tests/") ||
+    lower.includes("__tests__/") ||
+    lower.includes("spec/") ||
+    lower.includes(".lock") ||
+    lower.endsWith("package-lock.json") ||
+    lower.endsWith("yarn.lock") ||
+    lower.endsWith("pnpm-lock.yaml") ||
+    lower.endsWith("cargo.lock") ||
+    lower.endsWith("poetry.lock")
+  );
+}
+
+// Categorize all blobs in the tree
+function categorizeTree(treePaths: string[]): CategorizedFileTree {
+  const manifests: string[] = [];
+  const entrypoints: string[] = [];
+  const routers: string[] = [];
+  const models: string[] = [];
+  const services: string[] = [];
+  const infrastructure: string[] = [];
+
+  for (const p of treePaths) {
+    if (isIgnoredPath(p)) continue;
+    const lower = p.toLowerCase();
+    const fileName = lower.split("/").pop() || "";
+
+    // Manifests
+    if (MANIFEST_PATTERNS.some((m) => fileName === m || lower.endsWith("/" + m))) {
+      manifests.push(p);
+    }
+    // Entrypoints
+    else if (ENTRYPOINT_PATTERNS.some((e) => lower === e || lower.endsWith("/" + e))) {
+      entrypoints.push(p);
+    }
+    // Routers / Controllers / API
+    else if (
+      lower.includes("route") ||
+      lower.includes("controller") ||
+      lower.includes("handler") ||
+      lower.includes("api/") ||
+      lower.includes("endpoints/")
+    ) {
+      routers.push(p);
+    }
+    // Models / DB / Schemas
+    else if (
+      lower.includes("model") ||
+      lower.includes("schema") ||
+      lower.includes("entit") ||
+      lower.includes("migration") ||
+      lower.includes("db/")
+    ) {
+      models.push(p);
+    }
+    // Services / Core logic
+    else if (
+      lower.includes("service") ||
+      lower.includes("lib/") ||
+      lower.includes("core/") ||
+      lower.includes("domain/") ||
+      lower.includes("pkg/") ||
+      lower.includes("internal/")
+    ) {
+      services.push(p);
+    }
+    // Infra / Deploy
+    else if (
+      lower.includes("docker") ||
+      lower.includes("k8s") ||
+      lower.includes("kubernetes") ||
+      lower.includes("terraform") ||
+      lower.includes("helm") ||
+      lower.includes("deploy")
+    ) {
+      infrastructure.push(p);
+    }
+  }
+
+  return {
+    manifests,
+    entrypoints,
+    routers,
+    models,
+    services,
+    infrastructure,
+    totalBlobs: treePaths.length,
+  };
+}
+
+// Parse manifests and detect tech stack & project archetype
+function extractTechStack(keyFiles: RepoFileInfo[], categorized: CategorizedFileTree, mainLang: string): DetectedTechStack {
+  const frameworks = new Set<string>();
+  const databases = new Set<string>();
+  const infrastructure = new Set<string>();
+  const runtimes = new Set<string>();
+  const externalServices = new Set<string>();
+
+  const allContent = keyFiles.map((f) => f.content.toLowerCase()).join("\n");
+
+  // Runtimes
+  if (mainLang) runtimes.add(mainLang);
+  if (allContent.includes("node") || categorized.manifests.some((m) => m.endsWith("package.json"))) runtimes.add("Node.js");
+  if (allContent.includes("python") || categorized.manifests.some((m) => m.endsWith("pyproject.toml") || m.endsWith("requirements.txt"))) runtimes.add("Python");
+  if (allContent.includes("rust") || categorized.manifests.some((m) => m.endsWith("Cargo.toml"))) runtimes.add("Rust");
+  if (allContent.includes("golang") || categorized.manifests.some((m) => m.endsWith("go.mod"))) runtimes.add("Go");
+
+  // Frameworks
+  if (allContent.includes('"next"') || allContent.includes("'next'") || allContent.includes("nextjs")) frameworks.add("Next.js");
+  if (allContent.includes('"react"') || allContent.includes("'react'") || allContent.includes("react-dom")) frameworks.add("React");
+  if (allContent.includes('"vue"') || allContent.includes("'vue'")) frameworks.add("Vue");
+  if (allContent.includes('"svelte"') || allContent.includes("@sveltejs")) frameworks.add("Svelte");
+  if (allContent.includes('"express"') || allContent.includes("'express'")) frameworks.add("Express");
+  if (allContent.includes('"@nestjs"') || allContent.includes("nestjs")) frameworks.add("NestJS");
+  if (allContent.includes('"fastify"')) frameworks.add("Fastify");
+  if (allContent.includes("fastapi")) frameworks.add("FastAPI");
+  if (allContent.includes("flask")) frameworks.add("Flask");
+  if (allContent.includes("django")) frameworks.add("Django");
+  if (allContent.includes("gin-gonic/gin")) frameworks.add("Gin");
+  if (allContent.includes("labstack/echo")) frameworks.add("Echo");
+  if (allContent.includes("actix-web")) frameworks.add("Actix-Web");
+  if (allContent.includes("axum")) frameworks.add("Axum");
+
+  // Databases & Stores
+  if (allContent.includes("postgres") || allContent.includes("psycopg2") || allContent.includes("asyncpg") || allContent.includes("pg")) databases.add("PostgreSQL");
+  if (allContent.includes("mysql") || allContent.includes("mysql2") || allContent.includes("pymysql")) databases.add("MySQL");
+  if (allContent.includes("sqlite") || allContent.includes("sqlite3") || allContent.includes("better-sqlite3")) databases.add("SQLite");
+  if (allContent.includes("mongodb") || allContent.includes("mongoose") || allContent.includes("pymongo")) databases.add("MongoDB");
+  if (allContent.includes("redis") || allContent.includes("ioredis") || allContent.includes("aioredis")) databases.add("Redis");
+  if (allContent.includes("prisma") || allContent.includes("@prisma/client")) databases.add("Prisma ORM");
+  if (allContent.includes("drizzle-orm")) databases.add("Drizzle ORM");
+  if (allContent.includes("sqlalchemy")) databases.add("SQLAlchemy");
+  if (allContent.includes("elasticsearch") || allContent.includes("opensearch")) databases.add("Elasticsearch");
+  if (allContent.includes("clickhouse")) databases.add("ClickHouse");
+
+  // Infrastructure & Messaging
+  if (allContent.includes("docker") || categorized.infrastructure.some((i) => i.includes("docker"))) infrastructure.add("Docker");
+  if (allContent.includes("kubernetes") || categorized.infrastructure.some((i) => i.includes("k8s"))) infrastructure.add("Kubernetes");
+  if (allContent.includes("kafka") || allContent.includes("kafkajs")) infrastructure.add("Kafka");
+  if (allContent.includes("rabbitmq") || allContent.includes("amqplib") || allContent.includes("pika")) infrastructure.add("RabbitMQ");
+  if (allContent.includes("celery")) infrastructure.add("Celery");
+  if (allContent.includes("nginx")) infrastructure.add("Nginx");
+
+  // External APIs & AI
+  if (allContent.includes("openai")) externalServices.add("OpenAI");
+  if (allContent.includes("anthropic") || allContent.includes("claude")) externalServices.add("Anthropic Claude");
+  if (allContent.includes("supabase")) externalServices.add("Supabase");
+  if (allContent.includes("firebase")) externalServices.add("Firebase");
+  if (allContent.includes("stripe")) externalServices.add("Stripe");
+  if (allContent.includes("cloudflare")) externalServices.add("Cloudflare");
+  if (allContent.includes("vercel")) externalServices.add("Vercel");
+  if (allContent.includes("aws") || allContent.includes("boto3") || allContent.includes("@aws-sdk")) externalServices.add("AWS");
+
+  // Determine Archetype
+  let archetype: DetectedTechStack["archetype"] = "backend-api";
+  const isMonorepo = categorized.manifests.some((m) => m.includes("turbo.json") || m.includes("pnpm-workspace.yaml") || m.includes("lerna.json")) || categorized.manifests.length > 3;
+  const isFullstack = (frameworks.has("Next.js") || frameworks.has("Remix") || frameworks.has("Nuxt") || frameworks.has("SvelteKit")) || (frameworks.has("React") && (frameworks.has("Express") || frameworks.has("FastAPI")));
+  const isFrontend = (frameworks.has("React") || frameworks.has("Vue") || frameworks.has("Svelte")) && !isFullstack && databases.size === 0;
+  const isCli = allContent.includes("cli") || allContent.includes("commander") || allContent.includes("clap") || allContent.includes("cobra") || allContent.includes("click") || allContent.includes("argparse");
+  const isData = allContent.includes("airflow") || allContent.includes("pandas") || allContent.includes("spark") || allContent.includes("dbt") || allContent.includes("pytorch") || allContent.includes("tensorflow");
+
+  if (isMonorepo) archetype = "monorepo";
+  else if (isFullstack) archetype = "fullstack";
+  else if (isFrontend) archetype = "frontend-app";
+  else if (isData) archetype = "data-pipeline";
+  else if (isCli) archetype = "cli-system";
+  else if (databases.size === 0 && frameworks.size === 0) archetype = "library-sdk";
+  else archetype = "backend-api";
+
+  return {
+    frameworks: Array.from(frameworks),
+    databases: Array.from(databases),
+    infrastructure: Array.from(infrastructure),
+    runtimes: Array.from(runtimes),
+    externalServices: Array.from(externalServices),
+    archetype,
+  };
+}
 
 /**
  * Fetches repository structure and key architectural files from GitHub REST API.
@@ -80,8 +302,8 @@ export async function fetchRepoContext(owner: string, repo: string): Promise<Rep
     defaultBranch,
   };
 
-  // 2. Fetch Repository Tree (Top level / Recursive tree)
-  let fileTree: string[] = [];
+  // 2. Fetch Full Repository Tree
+  let allBlobPaths: string[] = [];
   try {
     const treeRes = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`,
@@ -89,53 +311,60 @@ export async function fetchRepoContext(owner: string, repo: string): Promise<Rep
     );
     if (treeRes.ok) {
       const treeData = await treeRes.json();
-      if (treeData.truncated) {
-        console.warn(`GitHub tree for ${owner}/${repo} was truncated. Analysis may be incomplete.`);
-      }
       if (Array.isArray(treeData.tree)) {
-        fileTree = treeData.tree
+        allBlobPaths = treeData.tree
           .filter((item: { type: string; path: string }) => item.type === "blob")
-          .map((item: { type: string; path: string }) => item.path)
-          .slice(0, 80); // Cap at 80 paths to keep prompt concise
+          .map((item: { type: string; path: string }) => item.path);
       }
     }
   } catch (err) {
     console.warn("Tree fetch warning:", err);
   }
 
-  // 3. Select and fetch key architectural files (Prioritizing root-level files first)
-  const keyFiles: RepoFileInfo[] = [];
+  // Categorize paths across the full tree
+  const categorizedTree = categorizeTree(allBlobPaths);
+
+  // 3. Select Key Files to Fetch (Up to 10 prioritized files)
   const filesToFetch = new Set<string>();
 
-  // 3a. First pass: exact root-level matches
-  for (const pattern of PRIORITY_FILENAMES) {
-    const matched = fileTree.find((f) => f.toLowerCase() === pattern.toLowerCase());
-    if (matched && filesToFetch.size < 6) {
-      filesToFetch.add(matched);
-    }
+  // Always fetch README if available
+  const readme = allBlobPaths.find((p) => p.toLowerCase() === "readme.md" || p.toLowerCase().endsWith("/readme.md"));
+  if (readme) filesToFetch.add(readme);
+
+  // Add top manifests (package.json, cargo.toml, pyproject.toml, requirements.txt, go.mod, docker-compose)
+  for (const m of categorizedTree.manifests) {
+    if (filesToFetch.size < 6) filesToFetch.add(m);
   }
 
-  // 3b. Second pass: nested architectural files if quota permits
-  for (const pattern of PRIORITY_FILENAMES) {
-    const matched = fileTree.find((f) => f.endsWith("/" + pattern));
-    if (matched && filesToFetch.size < 6) {
-      filesToFetch.add(matched);
-    }
+  // Add primary entrypoints
+  for (const e of categorizedTree.entrypoints) {
+    if (filesToFetch.size < 8) filesToFetch.add(e);
   }
 
-  // If tree fetch was empty, at least try README.md and package.json
+  // Add primary router/api definition
+  for (const r of categorizedTree.routers) {
+    if (filesToFetch.size < 10) filesToFetch.add(r);
+  }
+
+  // Add primary schema/model
+  for (const mod of categorizedTree.models) {
+    if (filesToFetch.size < 12) filesToFetch.add(mod);
+  }
+
+  // Fallbacks if tree was empty
   if (filesToFetch.size === 0) {
     filesToFetch.add("README.md");
     filesToFetch.add("package.json");
     filesToFetch.add("docker-compose.yml");
   }
 
-  // Fetch all key files in parallel
+  // 4. Fetch Key Files in Parallel
   const rawHeaders: HeadersInit = {
     "User-Agent": "RepoFlows",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
+  const keyFiles: RepoFileInfo[] = [];
   const fileResults = await Promise.allSettled(
     Array.from(filesToFetch).map(async (filePath) => {
       const fileRes = await fetch(
@@ -145,8 +374,8 @@ export async function fetchRepoContext(owner: string, repo: string): Promise<Rep
 
       if (fileRes.ok) {
         const text = await fileRes.text();
-        // Truncate file content to avoid overwhelming LLM context
-        const truncated = text.length > 5000 ? text.slice(0, 5000) + "\n...[truncated]" : text;
+        // Truncate large files to 4000 characters while preserving head
+        const truncated = text.length > 4000 ? text.slice(0, 4000) + "\n...[truncated for length]" : text;
         return {
           path: filePath,
           content: truncated,
@@ -163,9 +392,20 @@ export async function fetchRepoContext(owner: string, repo: string): Promise<Rep
     }
   }
 
+  // 5. Extract Tech Stack Profile
+  const techStack = extractTechStack(keyFiles, categorizedTree, meta.language);
+
+  // Return filtered concise fileTree for LLM (up to 120 most meaningful paths)
+  const cleanTree = allBlobPaths
+    .filter((p) => !isIgnoredPath(p))
+    .slice(0, 120);
+
   return {
     meta,
-    fileTree,
+    fileTree: cleanTree,
+    categorizedTree,
     keyFiles,
+    techStack,
   };
 }
+

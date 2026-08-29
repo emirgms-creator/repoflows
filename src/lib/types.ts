@@ -13,15 +13,25 @@ export type ConnectionVariant = "default" | "emphasis" | "security" | "dashed";
 
 export type CardDot = "cyan" | "emerald" | "violet" | "amber" | "rose" | "orange" | "slate";
 
+export interface ArchifySource {
+  path: string;
+  line?: number;
+  end_line?: number;
+  label?: string;
+}
+
 export interface ArchifyComponent {
   id: string;
   type: ComponentType;
   label: string;
   sublabel?: string;
   tag?: string;
-  brand?: string;
+  brand?: string | { id: string; digest?: string };
+  sources?: ArchifySource[];
   pos?: [number, number]; // [x, y]
   size?: [number, number]; // [w, h]
+  row?: number;
+  col?: number;
 }
 
 export interface ArchifyBoundary {
@@ -81,6 +91,15 @@ export interface RepoFileInfo {
   size: number;
 }
 
+export interface DetectedTechStack {
+  frameworks: string[];
+  databases: string[];
+  infrastructure: string[];
+  runtimes: string[];
+  externalServices: string[];
+  archetype: "fullstack" | "backend-api" | "frontend-app" | "library-sdk" | "cli-system" | "data-pipeline" | "monorepo";
+}
+
 export interface GenerateApiResponse {
   success: boolean;
   repo: string;
@@ -89,4 +108,5 @@ export interface GenerateApiResponse {
   cached?: boolean;
   error?: string;
 }
+
 
