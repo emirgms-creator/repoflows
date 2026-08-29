@@ -14,19 +14,57 @@ function getSvgDataUri(rawSvg: string): string {
   }
   const darkThemeStyles = `<style>
     :root {
-      --bg: #020617; --grid: #1e293b; --text: #ffffff; --text-muted: #94a3b8; --text-dim: #475569;
-      --panel: rgba(15, 23, 42, 0.5); --panel-border: #1e293b; --lane-fill: rgba(15, 23, 42, 0.22); --lane-stroke: #334155;
-      --arrow: #64748b; --arrow-emphasis: #34d399; --mask: #0f172a;
-      --frontend-fill: rgba(8, 51, 68, 0.4); --frontend-stroke: #22d3ee;
-      --backend-fill: rgba(6, 78, 59, 0.4); --backend-stroke: #34d399;
-      --database-fill: rgba(76, 29, 149, 0.4); --database-stroke: #a78bfa;
-      --cloud-fill: rgba(120, 53, 15, 0.3); --cloud-stroke: #fbbf24;
-      --security-fill: rgba(136, 19, 55, 0.4); --security-stroke: #fb7185;
-      --messagebus-fill: rgba(251, 146, 60, 0.3); --messagebus-stroke: #fb923c;
-      --external-fill: rgba(30, 41, 59, 0.5); --external-stroke: #94a3b8;
+      --bg: #020617;
+      --grid: #1e293b;
+      --text: #ffffff;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --panel: rgba(15, 23, 42, 0.7);
+      --panel-border: #1e293b;
+      --lane-fill: rgba(15, 23, 42, 0.45);
+      --lane-stroke: #334155;
+      --arrow: #64748b;
+      --arrow-emphasis: #34d399;
+      --mask: #0f172a;
+      --frontend-fill: rgba(8, 51, 68, 0.85);
+      --frontend-stroke: #22d3ee;
+      --backend-fill: rgba(6, 78, 59, 0.85);
+      --backend-stroke: #34d399;
+      --database-fill: rgba(76, 29, 149, 0.85);
+      --database-stroke: #a78bfa;
+      --cloud-fill: rgba(120, 53, 15, 0.8);
+      --cloud-stroke: #fbbf24;
+      --security-fill: rgba(136, 19, 55, 0.85);
+      --security-stroke: #fb7185;
+      --messagebus-fill: rgba(251, 146, 60, 0.8);
+      --messagebus-stroke: #fb923c;
+      --external-fill: rgba(30, 41, 59, 0.85);
+      --external-stroke: #94a3b8;
     }
-    svg { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: transparent; }
-    text { fill: #ffffff; font-weight: 500; }
+    svg { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: #000000; }
+    .c-grid { stroke: var(--grid); fill: none; }
+    .c-mask { fill: var(--mask); stroke: none; }
+    .c-frontend, [class*="frontend"] { fill: var(--frontend-fill) !important; stroke: var(--frontend-stroke) !important; stroke-width: 2px !important; }
+    .c-backend, [class*="backend"] { fill: var(--backend-fill) !important; stroke: var(--backend-stroke) !important; stroke-width: 2px !important; }
+    .c-database, [class*="database"] { fill: var(--database-fill) !important; stroke: var(--database-stroke) !important; stroke-width: 2px !important; }
+    .c-cloud, [class*="cloud"] { fill: var(--cloud-fill) !important; stroke: var(--cloud-stroke) !important; stroke-width: 2px !important; }
+    .c-security, [class*="security"] { fill: var(--security-fill) !important; stroke: var(--security-stroke) !important; stroke-width: 2px !important; }
+    .c-messagebus, [class*="messagebus"] { fill: var(--messagebus-fill) !important; stroke: var(--messagebus-stroke) !important; stroke-width: 2px !important; }
+    .c-external, [class*="external"] { fill: var(--external-fill) !important; stroke: var(--external-stroke) !important; stroke-width: 2px !important; }
+    .c-boundary, .boundary-box, [class*="boundary"], [class*="lane"] { stroke: var(--lane-stroke); fill: var(--lane-fill); stroke-dasharray: 4 4; stroke-width: 1.5px; }
+    .edge, path, line { stroke: var(--arrow); stroke-width: 1.5px; fill: none; }
+    .edge.emphasis, path.emphasis { stroke: var(--arrow-emphasis); stroke-width: 2px; }
+    .edge.security, path.security { stroke: var(--security-stroke); stroke-dasharray: 3 3; }
+    .t-primary, text { fill: var(--text) !important; font-size: 11px; }
+    .t-muted { fill: var(--text-muted) !important; }
+    .t-dim { fill: var(--text-dim) !important; }
+    .t-frontend { fill: var(--frontend-stroke) !important; }
+    .t-backend { fill: var(--backend-stroke) !important; }
+    .t-database { fill: var(--database-stroke) !important; }
+    .t-cloud { fill: var(--cloud-stroke) !important; }
+    .t-security { fill: var(--security-stroke) !important; }
+    .t-messagebus { fill: var(--messagebus-stroke) !important; }
+    .t-external { fill: var(--external-stroke) !important; }
   </style>`;
   clean = clean.replace(/<svg([^>]*)>/, `<svg$1>${darkThemeStyles}`);
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(clean)}`;
