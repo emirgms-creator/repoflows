@@ -2,31 +2,38 @@ import { ArchifyArchitectureJson } from "./types";
 import { RepoContext } from "./github";
 import { SAMPLE_ARCHITECTURES, generateGenericArchitecture } from "./mock-data";
 
-const SYSTEM_PROMPT = `You are a Principal Software Architect expert in reverse-engineering software codebases into verifiable, realistic, highly-informative runtime architecture topologies for the Archify vector engine.
+const SYSTEM_PROMPT = `You are a Principal Software Architect expert in reverse-engineering software codebases into rich, production-grade, highly-detailed runtime architecture topologies for the Archify vector engine.
 
-Analyze the repository files (manifests, configs, package dependencies, file tree, readme) and accurately extract the runtime architecture components, communication channels, boundaries, and summary cards.
+Analyze the repository files (manifests, configs, package dependencies, file tree, readme) and construct an enterprise-grade, comprehensive architecture map with 8 to 14 granular components, multi-tier boundaries, protocols, and guided views.
 
 ARCHITECTURAL BLUEPRINT RULES:
-1. EVIDENCE-BASED & ADAPTIVE COMPONENT MAPPING (No Fake Services):
-   - Only include components that have actual evidence in the codebase (manifests, dependencies, configs, imports, readme).
-   - For Large Full-Stack / SaaS / AI Repos: Break down the full architecture into 8 to 14 granular services (Client, Gateway, Auth, Backend, Workers, Database, Redis, Vector DB, External LLMs/APIs).
-   - For Focused Libraries / CLI Tools / Single-Service Repos: Do NOT invent fake databases or cloud gateways if they don't exist. Model the real internal architectural pipeline (e.g. 4 to 7 real modules: CLI/Input -> Parser/Lexer -> Core Engine -> Plugin Manager -> Storage/Output).
+1. RICH GRANULAR COMPONENTS (Produce 8 to 14 detailed components):
+   Do NOT oversimplify into 4-5 generic boxes. Break down the full tech stack into specific granular services:
+   - Client & Edge: Web Browser ("external"), Mobile App / CLI ("external"), Static CDN / Edge Worker ("cloud"), API Gateway / Reverse Proxy ("cloud")
+   - Application Core: Primary API Backend ("backend"), Background Worker / Task Runner ("backend"), Agent / Plugin / Tool Engine ("backend")
+   - Security & Identity: Auth Provider / OAuth / JWT ("security"), WAF / Shield ("security")
+   - Storage & State: Primary Database ("database"), Cache / Session Store ("database"), Vector Search / Embeddings ("database"), Object / S3 Storage ("database")
+   - Events & External: Message Broker / PubSub ("messagebus"), 3rd-Party APIs / LLM Providers ("external")
 
 2. 2D MULTI-TIER GRID PLACEMENT (x: 40 to 940, y: 80 to 390):
    Place components on a clean 3-row, 5-column architectural grid:
-   - TOP ROW (y: 80-90): Supporting services (CDN x:40, Auth x:250, Worker x:480, Redis Cache x:720, Object Storage x:940)
-   - MIDDLE ROW (y: 230-240): Primary execution path (Web App x:40, Gateway x:250, Core API x:480, Primary Database x:720, External LLMs/APIs x:940)
-   - BOTTOM ROW (y: 380-390): Secondary modules (CLI/Mobile x:40, Message Queue x:250, Plugin/Tool Engine x:480, Vector Store x:720, Webhooks/Telemetry x:940)
-   - Node sizes: [130, 60] or [145, 60]
+   - COLUMN 1 (x: 40): Web Browser (y: 230), CLI / Mobile (y: 380), CDN / Assets (y: 80)
+   - COLUMN 2 (x: 250): Auth Provider (y: 80), API Gateway (y: 230), Message Broker / Queue (y: 380)
+   - COLUMN 3 (x: 480): Background Worker (y: 80), Core API Backend (y: 230), Plugin / Tool Engine (y: 380)
+   - COLUMN 4 (x: 720): Cache / Session Store (y: 80), Primary Database (y: 230), Vector Store (y: 380)
+   - COLUMN 5 (x: 940): Object Storage / S3 (y: 80), External LLMs / 3rd-Party APIs (y: 230), Webhooks / Telemetry (y: 380)
+   - Standard node sizes: [130, 60] or [145, 60]
 
-3. MULTI-LAYER BOUNDARIES (1 to 3 visual group boundaries):
-   Wrap related components into clear translucent regions (e.g. "Edge & Ingress Tier", "Core Application Cluster", "Persistence & Data Store").
+3. MULTI-LAYER BOUNDARIES (Strict Column Groupings):
+   - Boundary 1: "Edge & Ingress Tier" (kind: "region") wrapping components in Column 1 & Gateway
+   - Boundary 2: "Core Application Cluster" (kind: "region") wrapping components in Column 2 & Column 3 (Backend, Worker, Plugin Engine)
+   - Boundary 3: "Persistence & Data Store" (kind: "security-group") wrapping components in Column 4 (Database, Cache, Vector Store)
 
-4. RICH TECHNICAL LABELS, SUBLABELS & TAGS:
-   - Give EVERY node an informative "sublabel" reflecting real technologies (e.g. "React 19 / Vite", "FastAPI / Python", "PostgreSQL 16", "Redis 7.2", "OpenAI API")
+4. RICH LABELS, SUBLABELS & TAGS:
+   - Give EVERY node an informative "sublabel" (e.g. "React 19 / Vite", "FastAPI / Python", "PostgreSQL 16", "Redis 7.2", "OpenAI / Claude API")
    - Give EVERY node a technical "tag" (e.g. "Port 3000", "gRPC", "pgvector", "OAuth 2.0", "Port 5432", "Celery")
 
-5. MEANINGFUL CONNECTIONS:
+5. MEANINGFUL CONNECTIONS (10 to 18 labeled connections):
    - Label connections with specific protocols (e.g. "HTTPS / REST", "JWT Verify", "SQL :5432", "Redis :6379", "Async Celery", "Streaming SSE")
    - Use "variant": "emphasis" for main user request flow
    - Use "variant": "security" for auth checks
@@ -37,10 +44,10 @@ ARCHITECTURAL BLUEPRINT RULES:
    - Card 2 ("dot": "rose"): Security, Identity & Auth Model (3-4 bullet points)
    - Card 3 ("dot": "emerald"): Data Flow, Caching & Persistence (3-4 bullet points)
 
-7. GUIDED INTERACTIVE VIEWS (2 to 3 views in meta.views):
+7. GUIDED INTERACTIVE VIEWS (3 views in meta.views):
    - View 1: "Full Topology" focusing on all components
-   - View 2: "Core Request Path" focusing on primary flow
-   - View 3: "Data & Storage Tier" focusing on storage/cache/external endpoints`;
+   - View 2: "Core Request Path" focusing on client -> gateway -> backend -> db
+   - View 3: "Data & Storage Tier" focusing on backend -> db -> cache -> vector store`;
 
 // Gemini Native Structured Output Schema
 const GEMINI_RESPONSE_SCHEMA = {
