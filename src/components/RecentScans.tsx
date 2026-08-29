@@ -6,6 +6,32 @@ import { ArrowRight, Layers } from "lucide-react";
 import GithubIcon from "./GithubIcon";
 import { RecentDiagramItem } from "@/lib/cache";
 
+function getSvgDataUri(rawSvg: string): string {
+  if (!rawSvg) return "";
+  let clean = rawSvg;
+  if (!clean.includes("xmlns=")) {
+    clean = clean.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
+  }
+  const darkThemeStyles = `<style>
+    :root {
+      --bg: #020617; --grid: #1e293b; --text: #ffffff; --text-muted: #94a3b8; --text-dim: #475569;
+      --panel: rgba(15, 23, 42, 0.5); --panel-border: #1e293b; --lane-fill: rgba(15, 23, 42, 0.22); --lane-stroke: #334155;
+      --arrow: #64748b; --arrow-emphasis: #34d399; --mask: #0f172a;
+      --frontend-fill: rgba(8, 51, 68, 0.4); --frontend-stroke: #22d3ee;
+      --backend-fill: rgba(6, 78, 59, 0.4); --backend-stroke: #34d399;
+      --database-fill: rgba(76, 29, 149, 0.4); --database-stroke: #a78bfa;
+      --cloud-fill: rgba(120, 53, 15, 0.3); --cloud-stroke: #fbbf24;
+      --security-fill: rgba(136, 19, 55, 0.4); --security-stroke: #fb7185;
+      --messagebus-fill: rgba(251, 146, 60, 0.3); --messagebus-stroke: #fb923c;
+      --external-fill: rgba(30, 41, 59, 0.5); --external-stroke: #94a3b8;
+    }
+    svg { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; background: transparent; }
+    text { fill: #ffffff; font-weight: 500; }
+  </style>`;
+  clean = clean.replace(/<svg([^>]*)>/, `<svg$1>${darkThemeStyles}`);
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(clean)}`;
+}
+
 export default function RecentScans() {
   const [items, setItems] = useState<RecentDiagramItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -79,7 +105,7 @@ export default function RecentScans() {
                   <div className="relative w-full h-36 rounded-xl bg-black/80 border border-neutral-800/90 overflow-hidden flex items-center justify-center pointer-events-none">
                     {item.svgPreview ? (
                       <img
-                        src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(item.svgPreview)}`}
+                        src={getSvgDataUri(item.svgPreview)}
                         alt={item.title || item.repo}
                         className="w-full h-full object-contain p-2.5 opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300"
                       />
