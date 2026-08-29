@@ -5,6 +5,9 @@ import { analyzeRepositoryWithGemini } from "@/lib/gemini";
 import { renderArchitectureJson } from "@/lib/archify-renderer";
 import { getCachedDiagram, setCachedDiagram } from "@/lib/cache";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const repoParam = searchParams.get("repo");

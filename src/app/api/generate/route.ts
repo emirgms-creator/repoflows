@@ -6,6 +6,9 @@ import { renderArchitectureJson } from "@/lib/archify-renderer";
 import { getCachedDiagram, setCachedDiagram } from "@/lib/cache";
 import { GenerateApiResponse } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest): Promise<NextResponse<GenerateApiResponse>> {
   try {
     const body = await req.json();
