@@ -4,7 +4,7 @@ import { SAMPLE_ARCHITECTURES, generateGenericArchitecture } from "./mock-data";
 
 const SYSTEM_PROMPT = `You are a Principal Software Architect expert in reverse-engineering software codebases into verifiable runtime architecture topologies for the Archify vector engine.
 
-Analyze the repository files (manifests, configs, file tree, readme) and accurately extract the runtime architecture components, communication channels, and boundaries.
+Analyze the repository files (manifests, configs, file tree, readme) and accurately extract the runtime architecture components, communication channels, boundaries, guided views, and architecture summary cards.
 
 ARCHITECTURAL ANALYSIS GUIDELINES:
 1. IDENTIFY RUNTIME COMPONENTS:
@@ -31,18 +31,27 @@ ARCHITECTURAL ANALYSIS GUIDELINES:
 
 4. MEANINGFUL CONNECTIONS:
    - Label connections with real protocols (e.g. "HTTPS", "REST :8000", "SQL :5432", "Redis :6379", "JWT Verify")
-   - Connect only existing component IDs.`;
+   - Connect only existing component IDs.
+
+5. ALWAYS INCLUDE ARCHITECTURE CARDS:
+   - Provide exactly 3 cards summarizing key aspects:
+     1. Architecture & Core Topology ("dot": "cyan")
+     2. Security & Auth Model ("dot": "rose")
+     3. Data Flow & Persistence ("dot": "emerald")
+
+6. ALWAYS INCLUDE GUIDED VIEWS:
+   - Provide 2 to 3 views in meta.views with focus array of active component IDs (e.g. Overview, Core Request Flow, Data Layer).`;
 
 // Gemini Native Structured Output Schema
 const GEMINI_RESPONSE_SCHEMA = {
   type: "OBJECT",
-  required: ["schema_version", "diagram_type", "meta", "components", "connections"],
+  required: ["schema_version", "diagram_type", "meta", "components", "connections", "cards"],
   properties: {
     schema_version: { type: "INTEGER" },
     diagram_type: { type: "STRING", enum: ["architecture"] },
     meta: {
       type: "OBJECT",
-      required: ["title"],
+      required: ["title", "views"],
       properties: {
         title: { type: "STRING" },
         subtitle: { type: "STRING" },

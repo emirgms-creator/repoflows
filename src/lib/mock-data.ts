@@ -143,6 +143,7 @@ export function generateGenericArchitecture(repoContext: RepoContext): ArchifyAr
       quality_profile: "showcase",
       views: [
         { id: "main_flow", label: "Primary Execution Flow", focus: ["user", "gateway", "core_engine", "storage_db"] },
+        { id: "data_tier", label: "Persistence & Storage Tier", focus: ["core_engine", "storage_db"] },
       ],
     },
     components: [
@@ -164,7 +165,8 @@ export function generateGenericArchitecture(repoContext: RepoContext): ArchifyAr
     ],
     cards: [
       { dot: "cyan", title: "Repository Summary", items: [`Primary Language: ${meta.language}`, `Stars: ${meta.stars.toLocaleString()}`, meta.description || "Active Open Source Project"] },
-      { dot: "emerald", title: "Execution Model", items: [`Modular ${meta.language} architecture`, "Service segregation and domain orchestration"] },
+      { dot: "rose", title: "Security & Access", items: ["Granular request validation", "Environment isolation and secure routing"] },
+      { dot: "emerald", title: "Execution Model", items: [`Modular ${meta.language} architecture`, "Service segregation and state management"] },
     ],
   };
 }

@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { Redis } from "@upstash/redis";
+import IORedis from "ioredis";
 import { ArchifyArchitectureJson } from "./types";
 
 const CACHE_DIR = path.join(os.tmpdir(), "repoflows-cache", "diagrams");
@@ -23,48 +23,37 @@ export interface RecentDiagramItem {
 }
 
 /**
- * Initializes and returns an Upstash Redis client if environment variables are provided.
- * Supports both Upstash standard variables and Vercel KV environment variables.
+ * Singleton Redis client supporting Redis Cloud, Upstash, and standard Redis URLs.
  */
-let redisClient: Redis | null | undefined = undefined;
+let redisClient: IORedis | null | undefined = undefined;
 
-function getRedis(): Redis | null {
+export function getRedis(): IORedis | null {
   if (redisClient !== undefined) {
     return redisClient;
   }
 
-  // 1. Direct REST URL and Token format
-  let url =
-    process.env.UPSTASH_REDIS_REST_URL ||
-    process.env.KV_REST_API_URL;
-  let token =
-    process.env.UPSTASH_REDIS_REST_TOKEN ||
-    process.env.KV_REST_API_TOKEN;
+  const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
 
-  // 2. Parse from REDIS_URL or KV_URL if only connection string was provided (e.g. rediss://default:token@host:6379)
-  if (!url || !token) {
-    const rawRedisUrl = process.env.REDIS_URL || process.env.KV_URL;
-    if (rawRedisUrl) {
-      try {
-        const parsed = new URL(rawRedisUrl);
-        const host = parsed.hostname;
-        const password = parsed.password;
-        if (host && password) {
-          url = `https://${host}`;
-          token = password;
-        }
-      } catch (err) {
-        console.warn("Failed to parse REDIS_URL connection string:", err);
-      }
-    }
-  }
-
-  if (url && token) {
+  if (redisUrl) {
     try {
-      redisClient = new Redis({ url, token });
+      redisClient = new IORedis(redisUrl, {
+        maxRetriesPerRequest: 2,
+        connectTimeout: 5000,
+        lazyConnect: true,
+        retryStrategy(times) {
+          if (times > 3) return null;
+          return Math.min(times * 100, 1000);
+        },
+      });
+
+      // Handle connection errors gracefully without crashing the app
+      redisClient.on("error", (err) => {
+        console.warn("Redis client connection warning:", err.message);
+      });
+
       return redisClient;
     } catch (err) {
-      console.warn("Failed to initialize Upstash Redis:", err);
+      console.warn("Failed to initialize Redis client:", err);
     }
   }
 
@@ -86,7 +75,7 @@ function getRedisKey(owner: string, repo: string): string {
 }
 
 /**
- * Retrieves a cached architecture diagram from Upstash Redis (if configured) or local disk.
+ * Retrieves a cached architecture diagram from Redis Cloud (if configured) or local disk.
  */
 export async function getCachedDiagram(
   owner: string,
@@ -94,15 +83,21 @@ export async function getCachedDiagram(
 ): Promise<{ jsonIr: ArchifyArchitectureJson; html: string } | null> {
   const redis = getRedis();
 
-  // 1. Try Upstash Redis Cloud Cache first
+  // 1. Try Redis Cloud Cache first
   if (redis) {
     try {
-      const data = await redis.get<CachedDiagramEntry>(getRedisKey(owner, repo));
-      if (data && data.jsonIr && data.html) {
-        return { jsonIr: data.jsonIr, html: data.html };
+      if (redis.status === "wait") {
+        await redis.connect();
+      }
+      const rawData = await redis.get(getRedisKey(owner, repo));
+      if (rawData) {
+        const data: CachedDiagramEntry = JSON.parse(rawData);
+        if (data && data.jsonIr && data.html) {
+          return { jsonIr: data.jsonIr, html: data.html };
+        }
       }
     } catch (err) {
-      console.warn("Upstash Redis get error, falling back to disk cache:", err);
+      console.warn("Redis get error, falling back to disk cache:", err);
     }
   }
 
@@ -121,7 +116,7 @@ export async function getCachedDiagram(
 }
 
 /**
- * Saves a newly generated architecture diagram to Upstash Redis and local disk.
+ * Saves a newly generated architecture diagram to Redis Cloud and local disk.
  */
 export async function setCachedDiagram(
   owner: string,
@@ -155,20 +150,23 @@ export async function setCachedDiagram(
     createdAt: now,
   };
 
-  // 1. Save to Upstash Redis Cloud Cache (Permanent across serverless instances)
+  // 1. Save to Redis Cloud Cache (Permanent across serverless instances)
   const redis = getRedis();
   if (redis) {
     try {
+      if (redis.status === "wait") {
+        await redis.connect();
+      }
       const key = getRedisKey(owner, repo);
-      await redis.set(key, entry);
+      await redis.set(key, JSON.stringify(entry));
 
       // Manage recent list: remove existing entry for this repo to avoid duplicates, then push to top
-      const recentList = await redis.lrange<string>("recent_diagrams", 0, 19);
+      const recentList = await redis.lrange("recent_diagrams", 0, 19);
       if (Array.isArray(recentList)) {
         for (const raw of recentList) {
           try {
-            const parsed: RecentDiagramItem = typeof raw === "string" ? JSON.parse(raw) : raw;
-            if (parsed.repo.toLowerCase() === fullName.toLowerCase()) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.repo && parsed.repo.toLowerCase() === fullName.toLowerCase()) {
               await redis.lrem("recent_diagrams", 0, raw);
             }
           } catch {}
@@ -178,7 +176,7 @@ export async function setCachedDiagram(
       await redis.lpush("recent_diagrams", JSON.stringify(recentItem));
       await redis.ltrim("recent_diagrams", 0, 19); // Keep latest 20 items
     } catch (err) {
-      console.error("Failed to save diagram to Upstash Redis:", err);
+      console.error("Failed to save diagram to Redis Cloud:", err);
     }
   }
 
@@ -193,15 +191,18 @@ export async function setCachedDiagram(
 }
 
 /**
- * Retrieves the most recent architecture diagrams from Upstash Redis or local disk cache.
+ * Retrieves the most recent architecture diagrams from Redis Cloud or local disk cache.
  */
 export async function getRecentCachedDiagrams(limit = 4): Promise<RecentDiagramItem[]> {
   const redis = getRedis();
 
-  // 1. Try Upstash Redis first
+  // 1. Try Redis Cloud first
   if (redis) {
     try {
-      const rawItems = await redis.lrange<string>("recent_diagrams", 0, limit - 1);
+      if (redis.status === "wait") {
+        await redis.connect();
+      }
+      const rawItems = await redis.lrange("recent_diagrams", 0, limit - 1);
       if (Array.isArray(rawItems) && rawItems.length > 0) {
         const results: RecentDiagramItem[] = [];
         for (const item of rawItems) {
@@ -217,7 +218,7 @@ export async function getRecentCachedDiagrams(limit = 4): Promise<RecentDiagramI
         }
       }
     } catch (err) {
-      console.warn("Upstash Redis recent query error, falling back to disk:", err);
+      console.warn("Redis recent query error, falling back to disk:", err);
     }
   }
 
