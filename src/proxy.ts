@@ -11,6 +11,7 @@ const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
 const MAX_REQUESTS_PER_WINDOW = 10; // 10 requests per minute per IP
+const MAX_MAP_ENTRIES = 2000;
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
@@ -19,6 +20,15 @@ function isRateLimited(ip: string): boolean {
   // Lazy cleanup: remove expired entry
   if (entry && now > entry.resetTime) {
     rateLimitMap.delete(ip);
+  }
+
+  // Periodic capacity control
+  if (rateLimitMap.size > MAX_MAP_ENTRIES) {
+    for (const [key, val] of rateLimitMap.entries()) {
+      if (now > val.resetTime) {
+        rateLimitMap.delete(key);
+      }
+    }
   }
 
   const current = rateLimitMap.get(ip);

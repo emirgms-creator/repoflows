@@ -113,7 +113,7 @@ function MapViewerContent() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${repo.replace("/", "_")}-architecture.html`;
+    a.download = `${repo.replaceAll("/", "_")}-architecture.html`;
     a.click();
     URL.revokeObjectURL(url);
     setShowExportMenu(false);
@@ -123,12 +123,15 @@ function MapViewerContent() {
     if (!htmlContent) return;
     const match = htmlContent.match(/<svg[\s\S]*?<\/svg>/i);
     if (!match) return;
-    const svgContent = match[0];
+    let svgContent = match[0];
+    if (!svgContent.includes("xmlns=")) {
+      svgContent = svgContent.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
+    }
     const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${repo.replace("/", "_")}-architecture.svg`;
+    a.download = `${repo.replaceAll("/", "_")}-architecture.svg`;
     a.click();
     URL.revokeObjectURL(url);
     setShowExportMenu(false);
@@ -140,7 +143,7 @@ function MapViewerContent() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${repo.replace("/", "_")}-architecture.json`;
+    a.download = `${repo.replaceAll("/", "_")}-architecture.json`;
     a.click();
     URL.revokeObjectURL(url);
     setShowExportMenu(false);

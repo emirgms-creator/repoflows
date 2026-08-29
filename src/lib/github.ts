@@ -55,6 +55,7 @@ export async function fetchRepoContext(owner: string, repo: string): Promise<Rep
   const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
     headers,
     next: { revalidate: 3600 },
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!repoRes.ok) {
@@ -84,7 +85,7 @@ export async function fetchRepoContext(owner: string, repo: string): Promise<Rep
   try {
     const treeRes = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`,
-      { headers, next: { revalidate: 3600 } }
+      { headers, next: { revalidate: 3600 }, signal: AbortSignal.timeout(10000) }
     );
     if (treeRes.ok) {
       const treeData = await treeRes.json();
@@ -102,14 +103,22 @@ export async function fetchRepoContext(owner: string, repo: string): Promise<Rep
     console.warn("Tree fetch warning:", err);
   }
 
-  // 3. Select and fetch key architectural files
+  // 3. Select and fetch key architectural files (Prioritizing root-level files first)
   const keyFiles: RepoFileInfo[] = [];
   const filesToFetch = new Set<string>();
 
-  // Look for priority filenames in tree
+  // 3a. First pass: exact root-level matches
   for (const pattern of PRIORITY_FILENAMES) {
-    const matched = fileTree.find((f) => f.toLowerCase() === pattern.toLowerCase() || f.endsWith("/" + pattern));
-    if (matched && filesToFetch.size < 5) {
+    const matched = fileTree.find((f) => f.toLowerCase() === pattern.toLowerCase());
+    if (matched && filesToFetch.size < 6) {
+      filesToFetch.add(matched);
+    }
+  }
+
+  // 3b. Second pass: nested architectural files if quota permits
+  for (const pattern of PRIORITY_FILENAMES) {
+    const matched = fileTree.find((f) => f.endsWith("/" + pattern));
+    if (matched && filesToFetch.size < 6) {
       filesToFetch.add(matched);
     }
   }
@@ -122,11 +131,16 @@ export async function fetchRepoContext(owner: string, repo: string): Promise<Rep
   }
 
   // Fetch all key files in parallel
+  const rawHeaders: HeadersInit = {
+    "User-Agent": "RepoFlows",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
   const fileResults = await Promise.allSettled(
     Array.from(filesToFetch).map(async (filePath) => {
       const fileRes = await fetch(
         `https://raw.githubusercontent.com/${owner}/${repo}/${defaultBranch}/${filePath}`,
-        { headers: { "User-Agent": "RepoFlows" }, next: { revalidate: 3600 } }
+        { headers: rawHeaders, next: { revalidate: 3600 }, signal: AbortSignal.timeout(10000) }
       );
 
       if (fileRes.ok) {

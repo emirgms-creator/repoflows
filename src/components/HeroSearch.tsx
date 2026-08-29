@@ -24,6 +24,7 @@ export default function HeroSearch() {
 
   const handleSubmit = async (e?: React.FormEvent, targetRepo?: string) => {
     if (e) e.preventDefault();
+    if (targetRepo) setInputVal(targetRepo);
     const target = targetRepo || inputVal;
     setError(null);
 

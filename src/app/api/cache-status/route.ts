@@ -1,40 +1,26 @@
-﻿import { NextResponse } from "next/server";
-import IORedis from "ioredis";
+import { NextResponse } from "next/server";
+import { getRedis } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const redisUrl = process.env.REDIS_URL || process.env.KV_URL;
-  const hasRedisUrl = Boolean(redisUrl);
+  const redis = getRedis();
+  const hasRedisUrl = Boolean(process.env.REDIS_URL || process.env.KV_URL);
 
   let status = "not_configured";
   let pingResult: string | null = null;
   let recentCount = 0;
-  let errorMessage: string | null = null;
 
-  if (redisUrl) {
-    let client: IORedis | null = null;
+  if (redis) {
     try {
-      client = new IORedis(redisUrl, {
-        maxRetriesPerRequest: 1,
-        connectTimeout: 4000,
-        lazyConnect: true,
-      });
-
-      await client.connect();
-      const ping = await client.ping();
+      const ping = await redis.ping();
       pingResult = String(ping);
       status = pingResult === "PONG" ? "connected" : "unexpected_ping_response";
 
-      const recentList = await client.lrange("recent_diagrams", 0, 10);
+      const recentList = await redis.lrange("recent_diagrams", 0, 10);
       recentCount = Array.isArray(recentList) ? recentList.length : 0;
-    } catch (err: unknown) {
+    } catch {
       status = "connection_failed";
-      errorMessage = err instanceof Error ? err.message : String(err);
-    } finally {
-      if (client) {
-        try { client.disconnect(); } catch {}
-      }
     }
   }
 
@@ -44,7 +30,6 @@ export async function GET() {
     provider: "Redis Cloud / Standard Redis",
     ping: pingResult,
     recentCount,
-    error: errorMessage,
     hasRedisUrl,
   });
 }

@@ -39,7 +39,7 @@ export function getRedis(): IORedis | null {
       redisClient = new IORedis(redisUrl, {
         maxRetriesPerRequest: 2,
         connectTimeout: 5000,
-        lazyConnect: true,
+        enableReadyCheck: false,
         retryStrategy(times) {
           if (times > 3) return null;
           return Math.min(times * 100, 1000);
@@ -48,7 +48,7 @@ export function getRedis(): IORedis | null {
 
       // Handle connection errors gracefully without crashing the app
       redisClient.on("error", (err) => {
-        console.warn("Redis client connection warning:", err.message);
+        console.warn("Redis connection warning:", err.message);
       });
 
       return redisClient;
@@ -86,9 +86,6 @@ export async function getCachedDiagram(
   // 1. Try Redis Cloud Cache first
   if (redis) {
     try {
-      if (redis.status === "wait") {
-        await redis.connect();
-      }
       const rawData = await redis.get(getRedisKey(owner, repo));
       if (rawData) {
         const data: CachedDiagramEntry = JSON.parse(rawData);
@@ -157,9 +154,6 @@ export async function setCachedDiagram(
   const redis = getRedis();
   if (redis) {
     try {
-      if (redis.status === "wait") {
-        await redis.connect();
-      }
       const key = getRedisKey(owner, repo);
       await redis.set(key, JSON.stringify(entry));
 
@@ -202,9 +196,6 @@ export async function getRecentCachedDiagrams(limit = 4): Promise<RecentDiagramI
   // 1. Try Redis Cloud first
   if (redis) {
     try {
-      if (redis.status === "wait") {
-        await redis.connect();
-      }
       const rawItems = await redis.lrange("recent_diagrams", 0, limit - 1);
       if (Array.isArray(rawItems) && rawItems.length > 0) {
         const results: RecentDiagramItem[] = [];
@@ -253,6 +244,9 @@ export async function getRecentCachedDiagrams(limit = 4): Promise<RecentDiagramI
         const match = parsed.html.match(/<svg[\s\S]*?<\/svg>/i);
         if (match) {
           svg = match[0];
+          if (!svg.includes("xmlns=")) {
+            svg = svg.replace("<svg ", '<svg xmlns="http://www.w3.org/2000/svg" ');
+          }
         }
 
         results.push({

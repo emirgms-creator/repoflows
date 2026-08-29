@@ -201,7 +201,6 @@ ${f.content}
       clearTimeout(timeout);
     }
 
-
     if (!res.ok) {
       const errText = await res.text();
       console.warn("Gemini API error, falling back to generic architecture:", errText);

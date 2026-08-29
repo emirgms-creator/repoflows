@@ -13,8 +13,17 @@ export function cn(...inputs: ClassValue[]) {
  * - github.com/owner/repo
  * - owner/repo
  */
+const OWNER_REGEX = /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,38}[a-zA-Z0-9])?$/;
+const REPO_REGEX = /^[a-zA-Z0-9_.-]{1,100}$/;
+
+function isValid(owner: string, repo: string): boolean {
+  if (!owner || !repo) return false;
+  if (owner === "." || owner === ".." || repo === "." || repo === "..") return false;
+  return OWNER_REGEX.test(owner) && REPO_REGEX.test(repo);
+}
+
 export function parseGitHubRepo(input: string): { owner: string; repo: string; fullName: string } | null {
-  const trimmed = input.trim().replace(/\.git\/?$/, "");
+  const trimmed = input.trim().replace(/\.git\/?$/, "").replace(/\/+$/, "");
   if (!trimmed) return null;
 
   // Match full URL or domain URL
@@ -22,7 +31,9 @@ export function parseGitHubRepo(input: string): { owner: string; repo: string; f
   if (urlMatch) {
     const owner = urlMatch[1];
     const repo = urlMatch[2];
-    return { owner, repo, fullName: `${owner}/${repo}` };
+    if (isValid(owner, repo)) {
+      return { owner, repo, fullName: `${owner}/${repo}` };
+    }
   }
 
   // Match simple owner/repo
@@ -30,7 +41,9 @@ export function parseGitHubRepo(input: string): { owner: string; repo: string; f
   if (simpleMatch) {
     const owner = simpleMatch[1];
     const repo = simpleMatch[2];
-    return { owner, repo, fullName: `${owner}/${repo}` };
+    if (isValid(owner, repo)) {
+      return { owner, repo, fullName: `${owner}/${repo}` };
+    }
   }
 
   return null;
