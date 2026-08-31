@@ -21,11 +21,13 @@ CRITICAL TRUTH & GROUNDING INVARIANTS:
    - If a database or external service is configured via docker-compose or manifest, cite that file (e.g. [{"path": "docker-compose.yml", "label": "Postgres Container"}]).
 
 3. ARCHIFY BRAND MARKS (brand):
-   - Assign the exact canonical brand identifier if the component matches a supported technology:
-     * AI: "openai", "claude", "anthropic", "google-gemini", "deepseek", "mistral-ai", "hugging-face", "ollama"
-     * Cloud & Infra: "vercel", "cloudflare", "docker", "kubernetes", "terraform", "github-actions", "aws", "google-cloud"
-     * Databases: "postgresql", "mysql", "sqlite", "mongodb", "redis", "apache-kafka", "rabbitmq", "elasticsearch", "clickhouse", "prisma", "supabase", "firebase"
-     * Monitoring & Business: "sentry", "grafana", "prometheus", "stripe"
+   - Assign the exact canonical brand identifier ONLY if the component matches one of these supported technologies:
+     * AI: "openai", "claude", "anthropic", "google-gemini", "deepseek", "qwen", "meta", "mistral-ai", "hugging-face", "ollama", "openrouter", "perplexity"
+     * Cloud & Infra: "vercel", "cloudflare", "docker", "kubernetes", "terraform", "github-actions", "aws", "google-cloud", "netlify", "digitalocean", "render", "railway", "fly-io"
+     * Databases: "postgresql", "mysql", "sqlite", "mongodb", "redis", "apache-kafka", "rabbitmq", "elasticsearch", "clickhouse", "prisma", "supabase", "firebase", "mariadb", "influxdb", "apache-airflow"
+     * Languages & Frameworks: "python", "typescript", "javascript", "go", "rust", "node-js", "react", "vue", "next-js", "angular", "svelte", "django", "flask", "fastapi", "spring", "dotnet"
+     * Monitoring & Business: "sentry", "grafana", "prometheus", "stripe", "notion", "figma", "jira", "discord"
+   - CRITICAL: If a component is written in another language/tech (e.g. Pascal, C, C++, Assembly, Ruby, PHP) or does not match this list, OMIT the "brand" property entirely! NEVER invent custom brand IDs like "pascal" or "jwt".
 
 4. COMPONENT TYPES & QUANTITY:
    - Produce between 5 to 10 high-value, strictly evidenced components (do not bloat with empty generic boxes).
@@ -49,7 +51,18 @@ CRITICAL TRUTH & GROUNDING INVARIANTS:
 7. BOUNDARIES & VIEWS:
    - Group real cohesive boundaries (e.g. "API Gateway & Ingress", "Application Runtime", "Data Tier").
    - Create 2 to 3 guided views in meta.views (e.g. "Primary Execution Flow", "Data & Persistence Flow").
-   - Create exactly 3 factual summary cards explaining the real architecture, data lifecycle, and security model.`;
+   - Create exactly 3 factual summary cards explaining the real architecture, data lifecycle, and security model.
+
+8. EXACT ARCHIFY COPYWRITING & CHARACTER LIMITS:
+   - All IDs (components, views, connections) MUST start with an alphabetic letter (e.g. "view_exec_flow", "comp_gateway", "conn_client_server"). Never start with a number.
+   - View Label: Concise chapter title (max 40 chars, e.g. "Primary Execution Flow", "Data Persistence Flow").
+   - View Note: Exactly 1 clean, complete sentence describing the view (max 120 chars, e.g. "End-to-end user request pipeline from client entry to database persistence.").
+   - Component Label: Concise technical name (max 24 chars, e.g. "Next.js API Routes", "Redis Cache").
+   - Component Sublabel: Key framework or purpose (max 32 chars, e.g. "App Router & Middleware").
+   - Component Tag: Protocol or file (max 24 chars, e.g. "tRPC", "Port 3000", "server.ts").
+   - Connection Label: Short protocol/action (max 28 chars, e.g. "HTTPS / JSON", "SQL Queries").
+   - Summary Card Title: Short header (max 35 chars, e.g. "Architecture Overview").
+   - Summary Card Items: Exactly 2-4 concise, complete bullet points (each 40 to 90 chars).`;
 
 // Gemini Native Structured Output Schema
 const GEMINI_RESPONSE_SCHEMA = {
@@ -62,8 +75,8 @@ const GEMINI_RESPONSE_SCHEMA = {
       type: "OBJECT",
       required: ["title", "views"],
       properties: {
-        title: { type: "STRING" },
-        subtitle: { type: "STRING" },
+        title: { type: "STRING", description: "Architecture title (max 50 chars)" },
+        subtitle: { type: "STRING", description: "Short subtitle or tag (max 80 chars)" },
         quality_profile: { type: "STRING", enum: ["standard", "showcase"] },
         views: {
           type: "ARRAY",
@@ -71,10 +84,10 @@ const GEMINI_RESPONSE_SCHEMA = {
             type: "OBJECT",
             required: ["id", "label", "focus"],
             properties: {
-              id: { type: "STRING" },
-              label: { type: "STRING" },
+              id: { type: "STRING", description: "View ID starting with a letter, e.g. view_primary" },
+              label: { type: "STRING", description: "Short chapter title (max 40 chars)" },
               focus: { type: "ARRAY", items: { type: "STRING" } },
-              note: { type: "STRING" },
+              note: { type: "STRING", description: "1 complete sentence explaining the focus (max 120 chars)" },
             },
           },
         },
@@ -86,15 +99,15 @@ const GEMINI_RESPONSE_SCHEMA = {
         type: "OBJECT",
         required: ["id", "type", "label", "pos", "size"],
         properties: {
-          id: { type: "STRING" },
+          id: { type: "STRING", description: "Component ID starting with a letter, e.g. comp_server" },
           type: {
             type: "STRING",
             enum: ["frontend", "backend", "database", "cloud", "security", "messagebus", "external"],
           },
-          label: { type: "STRING" },
-          sublabel: { type: "STRING" },
-          tag: { type: "STRING" },
-          brand: { type: "STRING" },
+          label: { type: "STRING", description: "Component label (max 24 chars)" },
+          sublabel: { type: "STRING", description: "Technology / role (max 32 chars)" },
+          tag: { type: "STRING", description: "Port / Protocol / Tag (max 24 chars)" },
+          brand: { type: "STRING", description: "Canonical Archify brand ID or omit" },
           sources: {
             type: "ARRAY",
             items: {
@@ -119,7 +132,7 @@ const GEMINI_RESPONSE_SCHEMA = {
         required: ["kind", "label", "wraps"],
         properties: {
           kind: { type: "STRING", enum: ["region", "security-group"] },
-          label: { type: "STRING" },
+          label: { type: "STRING", description: "Boundary title (max 40 chars)" },
           wraps: { type: "ARRAY", items: { type: "STRING" } },
         },
       },
@@ -130,9 +143,10 @@ const GEMINI_RESPONSE_SCHEMA = {
         type: "OBJECT",
         required: ["from", "to"],
         properties: {
+          id: { type: "STRING" },
           from: { type: "STRING" },
           to: { type: "STRING" },
-          label: { type: "STRING" },
+          label: { type: "STRING", description: "Protocol or action label (max 28 chars)" },
           variant: { type: "STRING", enum: ["default", "emphasis", "security", "dashed"] },
           fromSide: { type: "STRING", enum: ["left", "right", "top", "bottom"] },
           toSide: { type: "STRING", enum: ["left", "right", "top", "bottom"] },
@@ -146,8 +160,8 @@ const GEMINI_RESPONSE_SCHEMA = {
         required: ["dot", "title", "items"],
         properties: {
           dot: { type: "STRING", enum: ["cyan", "emerald", "violet", "amber", "rose", "orange", "slate"] },
-          title: { type: "STRING" },
-          items: { type: "ARRAY", items: { type: "STRING" } },
+          title: { type: "STRING", description: "Card title (max 35 chars)" },
+          items: { type: "ARRAY", items: { type: "STRING" }, description: "2-4 complete bullet points (each 40-90 chars)" },
         },
       },
     },

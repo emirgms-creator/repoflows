@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseGitHubRepo } from "@/lib/utils";
 import { fetchRepoContext } from "@/lib/github";
 import { analyzeRepositoryWithGemini } from "@/lib/gemini";
+import { generateGenericArchitecture } from "@/lib/mock-data";
 import { renderArchitectureJson } from "@/lib/archify-renderer";
 import { getCachedDiagram, setCachedDiagram } from "@/lib/cache";
 import { GenerateApiResponse } from "@/lib/types";
@@ -45,10 +46,17 @@ export async function POST(req: NextRequest): Promise<NextResponse<GenerateApiRe
     const repoContext = await fetchRepoContext(parsed.owner, parsed.repo);
 
     // 3. Synthesize Architecture JSON IR via Gemini AI
-    const jsonIr = await analyzeRepositoryWithGemini(repoContext);
+    let jsonIr = await analyzeRepositoryWithGemini(repoContext);
 
-    // 4. Render JSON IR into standalone Archify HTML
-    const html = await renderArchitectureJson(jsonIr);
+    // 4. Render JSON IR into standalone Archify HTML (with fail-safe fallback)
+    let html: string;
+    try {
+      html = await renderArchitectureJson(jsonIr);
+    } catch (renderError) {
+      console.warn("Primary AI architecture render failed, using fallback synthesizer:", renderError);
+      jsonIr = generateGenericArchitecture(repoContext);
+      html = await renderArchitectureJson(jsonIr);
+    }
 
     // 5. Save to Local Persistent Disk Cache permanently
     await setCachedDiagram(parsed.owner, parsed.repo, jsonIr, html);

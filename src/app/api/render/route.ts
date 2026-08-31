@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseGitHubRepo } from "@/lib/utils";
 import { fetchRepoContext } from "@/lib/github";
 import { analyzeRepositoryWithGemini } from "@/lib/gemini";
+import { generateGenericArchitecture } from "@/lib/mock-data";
 import { renderArchitectureJson } from "@/lib/archify-renderer";
 import { getCachedDiagram, setCachedDiagram } from "@/lib/cache";
 
@@ -33,8 +34,15 @@ export async function GET(req: NextRequest) {
     }
 
     const repoContext = await fetchRepoContext(parsed.owner, parsed.repo);
-    const jsonIr = await analyzeRepositoryWithGemini(repoContext);
-    const html = await renderArchitectureJson(jsonIr);
+    let jsonIr = await analyzeRepositoryWithGemini(repoContext);
+    let html: string;
+    try {
+      html = await renderArchitectureJson(jsonIr);
+    } catch (renderError) {
+      console.warn("Primary AI architecture render failed, using fallback synthesizer:", renderError);
+      jsonIr = generateGenericArchitecture(repoContext);
+      html = await renderArchitectureJson(jsonIr);
+    }
 
     await setCachedDiagram(parsed.owner, parsed.repo, jsonIr, html);
 

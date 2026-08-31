@@ -22,9 +22,105 @@ const ALLOWED_BOUNDARY_KINDS = new Set(["region", "security-group"]);
 const ALLOWED_VARIANTS = new Set(["default", "emphasis", "security", "dashed"]);
 const ALLOWED_DOTS = new Set(["cyan", "emerald", "violet", "amber", "rose", "orange", "slate"]);
 
-/**
- * Sanitizes and auto-repairs any raw JSON IR to strictly match Archify's AJV JSON Schema.
- */
+// Map of alias/canonical brand names to Archify supported canonical brand IDs
+const VALID_BRAND_MAP: Record<string, string> = {
+  // AI
+  openai: "openai", chatgpt: "openai", gpt: "openai", codex: "openai",
+  claude: "claude", "claude-ai": "claude",
+  anthropic: "anthropic",
+  "google-gemini": "google-gemini", gemini: "google-gemini", googlegemini: "google-gemini",
+  deepseek: "deepseek",
+  qwen: "qwen",
+  meta: "meta", llama: "meta",
+  "mistral-ai": "mistral-ai", mistral: "mistral-ai", mistralai: "mistral-ai",
+  "hugging-face": "hugging-face", huggingface: "hugging-face",
+  ollama: "ollama",
+  openrouter: "openrouter", "open-router": "openrouter",
+  perplexity: "perplexity",
+  replicate: "replicate",
+
+  // Cloud
+  "google-cloud": "google-cloud", gcp: "google-cloud", googlecloud: "google-cloud",
+  cloudflare: "cloudflare",
+  vercel: "vercel",
+  netlify: "netlify",
+  digitalocean: "digitalocean", "digital-ocean": "digitalocean",
+  render: "render",
+  railway: "railway",
+  "fly-io": "fly-io", "fly.io": "fly-io", flydotio: "fly-io",
+  cloudinary: "cloudinary",
+  "alibaba-cloud": "alibaba-cloud", aliyun: "alibaba-cloud",
+  firebase: "firebase",
+  supabase: "supabase",
+  neon: "neon",
+
+  // Engineering & Infra
+  github: "github",
+  gitlab: "gitlab",
+  bitbucket: "bitbucket",
+  docker: "docker",
+  kubernetes: "kubernetes", k8s: "kubernetes",
+  terraform: "terraform",
+  pulumi: "pulumi",
+  ansible: "ansible",
+  jenkins: "jenkins",
+  circleci: "circleci", "circle-ci": "circleci",
+  "github-actions": "github-actions", githubactions: "github-actions",
+  argo: "argo", argocd: "argo", "argo-cd": "argo",
+  helm: "helm",
+  grafana: "grafana",
+  prometheus: "prometheus",
+  sentry: "sentry",
+  datadog: "datadog",
+  pagerduty: "pagerduty", "pager-duty": "pagerduty",
+
+  // Data
+  postgresql: "postgresql", postgres: "postgresql",
+  mysql: "mysql",
+  mongodb: "mongodb", mongo: "mongodb",
+  redis: "redis",
+  "apache-kafka": "apache-kafka", kafka: "apache-kafka", apachekafka: "apache-kafka",
+  rabbitmq: "rabbitmq", "rabbit-mq": "rabbitmq",
+  clickhouse: "clickhouse",
+  elasticsearch: "elasticsearch", elastic: "elasticsearch",
+  opensearch: "opensearch", "open-search": "opensearch",
+  snowflake: "snowflake",
+  databricks: "databricks",
+  planetscale: "planetscale", "planet-scale": "planetscale",
+  prisma: "prisma",
+  sqlite: "sqlite",
+  mariadb: "mariadb", "maria-db": "mariadb",
+  influxdb: "influxdb", "influx-db": "influxdb",
+  "apache-airflow": "apache-airflow", airflow: "apache-airflow", apacheairflow: "apache-airflow",
+
+  // Collaboration & Business
+  notion: "notion", figma: "figma", jira: "jira", linear: "linear", discord: "discord",
+  zoom: "zoom", trello: "trello", asana: "asana", airtable: "airtable", miro: "miro",
+  stripe: "stripe", shopify: "shopify", hubspot: "hubspot", paypal: "paypal",
+  intercom: "intercom", zendesk: "zendesk", wordpress: "wordpress", woocommerce: "woocommerce",
+
+  // Languages & Frameworks
+  python: "python",
+  typescript: "typescript", ts: "typescript",
+  javascript: "javascript", js: "javascript",
+  go: "go", golang: "go",
+  rust: "rust",
+  "node-js": "node-js", node: "node-js", nodejs: "node-js", nodedotjs: "node-js",
+  react: "react", reactjs: "react",
+  vue: "vue", vuejs: "vue", "vue.js": "vue",
+  "next-js": "next-js", nextjs: "next-js", "next.js": "next-js", nextdotjs: "next-js",
+  pytorch: "pytorch", tensorflow: "tensorflow", angular: "angular", svelte: "svelte",
+  django: "django", flask: "flask", fastapi: "fastapi", spring: "spring", "spring-boot": "spring",
+  dotnet: "dotnet", ".net": "dotnet",
+};
+
+function normalizeBrand(rawBrand: any): string | undefined {
+  if (!rawBrand) return undefined;
+  const brandStr = typeof rawBrand === "string" ? rawBrand : typeof rawBrand === "object" ? rawBrand.id : "";
+  if (!brandStr) return undefined;
+  const key = String(brandStr).toLowerCase().trim().replace(/_/g, "-");
+  return VALID_BRAND_MAP[key] || undefined;
+}
 export function sanitizeArchifyJson(raw: any, forCli: boolean = false): ArchifyArchitectureJson {
   if (!raw || typeof raw !== "object") {
     throw new Error("Invalid architecture JSON input");
@@ -80,12 +176,9 @@ export function sanitizeArchifyJson(raw: any, forCli: boolean = false): ArchifyA
     if (c.sublabel) comp.sublabel = String(c.sublabel);
     if (c.tag) comp.tag = String(c.tag);
 
-    if (c.brand) {
-      if (typeof c.brand === "string") {
-        comp.brand = c.brand;
-      } else if (typeof c.brand === "object" && c.brand.id) {
-        comp.brand = { id: String(c.brand.id), ...(c.brand.digest ? { digest: String(c.brand.digest) } : {}) };
-      }
+    const normalizedBrand = normalizeBrand(c.brand);
+    if (normalizedBrand) {
+      comp.brand = normalizedBrand;
     }
 
     if (Array.isArray(c.sources) && c.sources.length > 0) {
@@ -149,15 +242,22 @@ export function sanitizeArchifyJson(raw: any, forCli: boolean = false): ArchifyA
   if (Array.isArray(raw.connections) && raw.connections.length > 0) {
     connections = raw.connections
       .map((conn: any) => {
-        if (!validComponentIds.has(conn.from) || !validComponentIds.has(conn.to)) {
+        if (!conn || !validComponentIds.has(conn.from) || !validComponentIds.has(conn.to)) {
           return null;
         }
+
+        let connId: string | undefined = undefined;
+        if (conn.id) {
+          connId = String(conn.id).replace(/[^a-zA-Z0-9_-]/g, "_");
+          if (!/^[a-zA-Z]/.test(connId)) connId = `conn_${connId}`;
+        }
+
         const connectionObj: any = {
           from: conn.from,
           to: conn.to,
         };
-        if (conn.id) connectionObj.id = String(conn.id);
-        if (conn.label) connectionObj.label = String(conn.label);
+        if (connId) connectionObj.id = connId;
+        if (conn.label) connectionObj.label = String(conn.label).slice(0, 80);
 
         let variant = String(conn.variant || "default").toLowerCase();
         if (variant === "solid") variant = "default";
@@ -186,11 +286,11 @@ export function sanitizeArchifyJson(raw: any, forCli: boolean = false): ArchifyA
       .map((card: any) => {
         let dot = String(card.dot || "cyan").toLowerCase();
         if (!ALLOWED_DOTS.has(dot)) dot = "cyan";
-        const items = Array.isArray(card.items) ? card.items.map(String) : [];
+        const items = Array.isArray(card.items) ? card.items.map(String).slice(0, 6) : [];
         if (items.length === 0) return null;
         return {
           dot,
-          title: String(card.title || "Overview"),
+          title: String(card.title || "Overview").slice(0, 80),
           items,
         };
       })
@@ -201,14 +301,17 @@ export function sanitizeArchifyJson(raw: any, forCli: boolean = false): ArchifyA
   // 6. Sanitize Views
   if (Array.isArray(raw.meta?.views) && raw.meta.views.length > 0) {
     const views = raw.meta.views
-      .map((v: any) => {
+      .slice(0, 5)
+      .map((v: any, vIdx: number) => {
         const focus = Array.isArray(v.focus) ? v.focus.filter((id: string) => validComponentIds.has(id)) : [];
         if (focus.length === 0) return null;
+        let viewId = String(v.id || `view_${vIdx}`).replace(/[^a-zA-Z0-9_-]/g, "_");
+        if (!/^[a-zA-Z]/.test(viewId)) viewId = `view_${viewId}`;
         return {
-          id: String(v.id || "view").replace(/[^a-zA-Z0-9_-]/g, "_"),
-          label: String(v.label || "View"),
+          id: viewId,
+          label: String(v.label || "View").slice(0, 48),
           focus,
-          ...(v.note ? { note: String(v.note) } : {}),
+          ...(v.note ? { note: String(v.note).slice(0, 140) } : {}),
         };
       })
       .filter(Boolean);
